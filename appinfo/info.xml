@@ -1,0 +1,20 @@
+<?xml version="1.0"?>
+<info>
+	<id>ssltest</id>
+	<name>SSL Labs SSL test</name>
+	<namespace>SSLTest</namespace>
+	<description>
+		Perform automated regular scans of your server using the SSL Labs SSL test. This app is not affliated with SSL Labs
+	</description>
+	<licence>AGPL</licence>
+	<author>Roeland Jago Douma</author>
+	<version>0.1.0</version>
+	<dependencies>
+		<nextcloud min-version="13" max-version="14" />
+		<php min-version="7.0" />
+	</dependencies>
+
+	<background-jobs>
+		<job>OCA\SSLTest\BackgroundJob\StatusJob</job>
+	</background-jobs>
+</info>

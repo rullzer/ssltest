@@ -27,7 +27,7 @@ namespace OCA\SSLTest\Backgroundjob;
 
 use GuzzleHttp\Exception\ClientException;
 use GuzzleHttp\Exception\ServerException;
-use OC\BackgroundJob\TimedJob;
+use OCP\BackgroundJob\TimedJob;
 use OCA\SSLTest\AppInfo\Application;
 use OCP\AppFramework\Utility\ITimeFactory;
 use OCP\BackgroundJob\IJobList;

@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 /**
  * @copyright Copyright (c) 2018 Roeland Jago Douma <roeland@famdouma.nl>
@@ -26,35 +27,23 @@ namespace OCA\SSLTest\AppInfo;
 
 use OCA\SSLTest\Notifications\Notifier;
 use OCP\AppFramework\App;
-use OCP\L10N\IFactory as L10NFactory;
+use OCP\AppFramework\Bootstrap\IBootContext;
+use OCP\AppFramework\Bootstrap\IBootstrap;
+use OCP\AppFramework\Bootstrap\IRegistrationContext;
 use OCP\Notification\IManager as NotificationsManager;
 
-class Application extends App {
-
-	const appID = 'ssltest';
+class Application extends App implements IBootstrap {
+	public const APP_ID = 'ssltest';
 
 	public function __construct() {
-		parent::__construct(self::appID);
+		parent::__construct(self::APP_ID);
 	}
 
-	public function registerNotifier() {
-		$container = $this->getContainer();
+	public function register(IRegistrationContext $context): void {
+		$context->registerNotifierService(Notifier::class)
+	}
 
-		/** @var NotificationsManager $manager */
-		$manager = $container->query(NotificationsManager::class);
-		$manager->registerNotifier(
-			function () use ($container) {
-				return $container->query(Notifier::class);
-			},
-			function () use ($container) {
-				/** @var L10NFactory $l10n */
-				$l10n = $container->query(L10NFactory::class);
-				$l = $l10n->get(self::appID);
-				return [
-					self::appID,
-					$l->t('SSL Labs SSL test'),
-				];
-			}
-		);
+	public function boot(IBootContext $context): void {
+
 	}
 }

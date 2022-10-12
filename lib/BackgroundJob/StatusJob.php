@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 /**
  * @copyright Copyright (c) 2018 Roeland Jago Douma <roeland@famdouma.nl>
@@ -29,6 +30,7 @@ use GuzzleHttp\Exception\ServerException;
 use OC\BackgroundJob\TimedJob;
 use OCA\SSLTest\AppInfo\Application;
 use OCP\AppFramework\Utility\ITimeFactory;
+use OCP\BackgroundJob\IJobList;
 use OCP\Http\Client\IClientService;
 use OCP\IConfig;
 use OCP\IGroupManager;
@@ -36,31 +38,23 @@ use OCP\IRequest;
 use OCP\Notification\IManager;
 
 class StatusJob extends TimedJob {
-	/** @param IRequest */
-	private $request;
-
-	/** @param IClientService */
-	private $clientService;
-
-	/** @param IConfig */
-	private $config;
-
-	/** @param IGroupManager */
-	private $groupManager;
-
-	/** @param IManager */
-	private $notificationManager;
-
-	/** @param ITimeFactory */
-	private $timeFactory;
+	
+	private IRequest $request;
+	private IClientService $clientService;
+	private IConfig $config;
+	private IGroupManager $groupManager;
+	private IManager $notificationManager;
+	private ITimeFactory $timeFactory;
+	private IJobList $joblist;
 
 	public function __construct(IRequest $request,
 								IClientService $clientService,
 								IConfig $config,
 								IGroupManager $groupManager,
 								IManager $notificationManager,
-								ITimeFactory $timeFactory) {
-		//Run once an hour
+								ITimeFactory $timeFactory,
+								IJobList $joblist) {
+		//Run once 
 		$this->setInterval(3600);
 
 		$this->request = $request;
@@ -69,6 +63,7 @@ class StatusJob extends TimedJob {
 		$this->groupManager = $groupManager;
 		$this->notificationManager = $notificationManager;
 		$this->timeFactory = $timeFactory;
+		$this->joblist = $joblist;
 	}
 
 	public function run($argument) {
@@ -82,6 +77,7 @@ class StatusJob extends TimedJob {
 						'host' => $this->request->getServerHost(),
 						'fromCache' => 'on',
 						'maxAge' => 168,
+						'publish' => 'off',
 					],
 					'timeout' => 10,
 				]
@@ -109,25 +105,28 @@ class StatusJob extends TimedJob {
 			'hasWarnings' => $data['hasWarnings'],
 		];
 
-		$prevData = $this->config->getAppValue(Application::appID, 'lastData');
+		$prevData = $this->config->getAppValue(Application::APP_ID, 'lastData');
 		$prevData = json_decode($prevData, true);
 
 		if ($prevData !== null) {
 			foreach ($prevData as $k => $v) {
 				if ($curData[$k] !== $v) {
-					$this->notify($curData['grade'], $curData['hasWarnings']);
+					$this->notify($curData['grade'], $curData['hasWarnings'], $this->request->getServerHost());
 					break;
 				}
 			}
 		} else {
-			$this->notify($curData['grade'], $curData['hasWarnings']);
+			$this->notify($curData['grade'], $curData['hasWarnings'], $this->request->getServerHost());
 		}
 
 		// Save latest data
-		$this->config->setAppValue(Application::appID, 'lastData', json_encode($curData));
+		$this->config->setAppValue(Application::APP_ID, 'lastData', json_encode($curData));
+
+		// Remove the job since all is good now
+		$this->joblist->remove(StatusJob::class);
 	}
 
-	private function notify(string $grade, bool $hasWarnings) {
+	private function notify(string $grade, bool $hasWarnings, string $host) {
 		$notification = $this->notificationManager->createNotification();
 
 		$time = $this->timeFactory->getTime();
@@ -137,9 +136,8 @@ class StatusJob extends TimedJob {
 		try {
 			$notification->setApp('ssltest')
 				->setDateTime($dateTime)
-				->setObject(Application::appID, dechex($time))
-				->setSubject('newResult', [])
-				->setMessage('newResult', [$grade, $hasWarnings]);
+				->setObject(Application::APP_ID, 'ssllabs_result')
+				->setSubject('newResult', [$grade, $hasWarnings, $host]);
 
 			$admins = $this->groupManager->get('admin');
 			foreach ($admins->getUsers() as $admin) {

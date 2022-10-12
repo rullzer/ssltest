@@ -54,6 +54,8 @@ class StatusJob extends TimedJob {
 								IManager $notificationManager,
 								ITimeFactory $timeFactory,
 								IJobList $joblist) {
+		parent::__construct($timeFactory);
+
 		//Run once 
 		$this->setInterval(3600);
 
